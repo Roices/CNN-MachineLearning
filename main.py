@@ -97,8 +97,7 @@ class VGG16(pl.LightningModule):
 
     def configure_optimizers(self):
         return torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=5e-4)
-
-
+    
 class Resnet18(pl.LightningModule):
     def __init__(self):
         super(Resnet18, self).__init__()
