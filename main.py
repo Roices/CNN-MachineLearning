@@ -11,7 +11,6 @@ from tensorflow.keras.callbacks import TensorBoard
 
 num_classes = 3
 VGG16_epochs = 2
-ConvNet_epochs = 5
 batch_size = 100
 learning_rate = 0.001
 image_size = 224
