@@ -7,32 +7,40 @@ import torchvision.models as models
 import torch.nn.functional as F
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
-from tensorflow.keras.callbacks import TensorBoard
+
 
 num_classes = 3
-VGG16_epochs = 2
 batch_size = 100
 learning_rate = 0.001
-image_size = 224
+Image_size = 32 # for VGG16
+#Image_size = 224 for  Resnet18
+
 
 # Data dir
 train_dir = '/Users/tuan/Downloads/DATA_CHAMBER_2021/train'
 test_dir = '/Users/tuan/Downloads/DATA_CHAMBER_2021/test'
 
 # Data transforms
-training_transforms = transforms.Compose([transforms.Resize((224, 224)),
-                                          transforms.RandomCrop((224, 224)),
+"""""
+Use for Raw
+training_transforms = transforms.Compose([transforms.Resize((Image_size, Image_size)),
+                                          transforms.ToTensor()])
+testing_transforms = transforms.Compose([transforms.Resize((Image_size, Image_size)),
+                                         transforms.ToTensor()])
+"""""
+training_transforms = transforms.Compose([transforms.Resize((Image_size, Image_size)),
+                                          transforms.RandomCrop((Image_size, Image_size)),
                                           transforms.RandomHorizontalFlip(),
                                           transforms.ToTensor(),
                                           transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                                                std=[0.229, 0.224, 0.225])])
-testing_transforms = transforms.Compose([transforms.Resize((224, 224)),
-                                         transforms.CenterCrop((224, 224)),
+testing_transforms = transforms.Compose([transforms.Resize((Image_size, Image_size)),
+                                         transforms.CenterCrop((Image_size, Image_size)),
                                          transforms.ToTensor(),
                                          transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                                               std=[0.229, 0.224, 0.225])])
 
-
+#resize 32x32 to run VGG16
 class VGG16(pl.LightningModule):
     def __init__(self):
         super().__init__()
@@ -157,124 +165,11 @@ class Resnet18(pl.LightningModule):
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=learning_rate)
 
-class MobileNet(pl.LightningModule):
-    def __init__(self):
-        super(Resnet18, self).__init__()
-        self.features = models.GoogLeNet()
-        # Freeze all layers
-        for param in self.features.parameters():
-            param.requires_grad = False
-        # change the last layer
-        num_ftrs = self.features.fc.in_features
-        self.features.fc = torch.nn.Linear(num_ftrs, 3)
 
-        self.accuracy = torchmetrics.Accuracy()
-
-    def forward(self, x):
-        out = self.features(x)
-        # out = F.log_softmax(out, dim=1)
-        return out
-
-    def training_step(self, batch, batch_idx):
-        images, labels = batch
-
-        # Forward pass
-        outputs = self(images)
-        loss = F.cross_entropy(outputs, labels)
-
-        self.log('train_acc', self.accuracy(outputs, labels))
-        self.log("train_loss", loss)
-        return loss
-
-    def train_dataloader(self):
-        train_dataset = torchvision.datasets.ImageFolder(train_dir, transform=training_transforms)
-
-        train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=batch_size, num_workers=4,
-                                                   shuffle=True)
-        return train_loader
-
-    def test_dataloader(self):
-        test_dataset = torchvision.datasets.ImageFolder(test_dir, transform=testing_transforms)
-
-        test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, num_workers=4,
-                                                  shuffle=False)
-        return test_loader
-
-    def test_step(self, batch, batch_idx):
-        images, labels = batch
-
-        # Forward pass
-        outputs = self(images)
-        loss = F.cross_entropy(outputs, labels)
-
-        self.log('test_acc', self.accuracy(outputs, labels))
-        self.log("test_loss", loss)
-        return loss
-
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=learning_rate)
-
-class GoogleNet(pl.LightningModule):
-    def __init__(self):
-        super(GoogleNet, self).__init__()
-        self.features = models.googlenet(pretrained=True)
-        # Freeze all layers
-        for param in self.features.parameters():
-            param.requires_grad = False
-        # change the last layer
-        num_ftrs = self.features.fc.in_features
-        print(num_ftrs)
-        self.features.fc = torch.nn.Linear(num_ftrs, 3)
-
-        self.accuracy = torchmetrics.Accuracy()
-
-    def forward(self, x):
-        out = self.features(x)
-
-        return out
-
-    def training_step(self, batch, batch_idx):
-        images, labels = batch
-
-        # Forward pass
-        outputs = self(images)
-        loss = F.cross_entropy(outputs, labels)
-
-        self.log('train_acc', self.accuracy(outputs, labels))
-        self.log("train_loss", loss)
-        return loss
-
-    def train_dataloader(self):
-        train_dataset = torchvision.datasets.ImageFolder(train_dir, transform=training_transforms)
-
-        train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=batch_size, num_workers=4,
-                                                   shuffle=True)
-        return train_loader
-
-    def test_dataloader(self):
-        test_dataset = torchvision.datasets.ImageFolder(test_dir, transform=testing_transforms)
-
-        test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, num_workers=4,
-                                                  shuffle=False)
-        return test_loader
-
-    def test_step(self, batch, batch_idx):
-        images, labels = batch
-
-        # Forward pass
-        outputs = self(images)
-        loss = F.cross_entropy(outputs, labels)
-
-        self.log('test_acc', self.accuracy(outputs, labels))
-        self.log("test_loss", loss)
-        return loss
-
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=learning_rate)
 
 
 if __name__ == '__main__':
-    model = MobileNet()
+    model = VGG16()
     trainer = Trainer(auto_lr_find=True, max_epochs=5, fast_dev_run=False, auto_scale_batch_size=True)
     trainer.fit(model)
     trainer.test(model)
